@@ -25,11 +25,12 @@ public class Avatar : Lognotifier
     public SpriteRenderer exclamation;
 
     public bool blinkeye = false;
-    public static bool canDestroy;
+    public float Distance_;
+
     private bool end;
 
-    public static bool doneDidDoIt;
-    public static bool jumping;
+    //public static bool doneDidDoIt;
+    //public static bool jumping;
     public static string zone = " ";
 
     public GameObject babies;
@@ -43,24 +44,25 @@ public class Avatar : Lognotifier
     private bool canStart;
     public static bool start = false;
     public static bool endgame;
-    public float Distance_;
     public static float speed; //current speed of environment moving
-    public static float baseSpeed = -0.001f; //base speed
+    public static float baseSpeed = 13f; //base speed (amt of seconds for obstacles to move from start to end point)
 
     [Range(0, 2)]
     public int condition;
 
-    private int[] cond0 = new int[20] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }; //0
-    private int[] cond1 = new int[20] { 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }; //1
-    private int[] cond2 = new int[20] { 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }; //2
-    private int[] demo = new int[10] { 0, 0, 2, 2, 2, 1, 1, 1, 1, 1 };
-    private int[] input;
+    //private int[] cond0 = new int[20] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }; //0
+    //private int[] cond1 = new int[20] { 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }; //1
+    //private int[] cond2 = new int[20] { 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }; //2
+    //private int[] demo = new int[10] { 0, 0, 2, 2, 2, 1, 1, 1, 1, 1 };
+    //private int[] input;
 
-    int i;
+    float timer;
+    bool timing;
 
+    public GameManager gm;
+    
     void Start()
     {
-       
         zone = "prestart";
         speed = baseSpeed; //set speed to base speed at first
 
@@ -75,55 +77,36 @@ public class Avatar : Lognotifier
         kiwiSquawk = soundEffects[3];
         feedback = soundEffects[4];
 
-        if (condition == 0)
-            input = cond0;
-        else if (condition == 1)
-            input = cond1;
-        else if (condition == 2)
-            input = cond2;
-
-        input = Shuffle(input);
-
         Invoke("OhNo", 2.0f);
         Invoke("StartGame", 4.0f);
     }
 
     void Update()
     {
-        if ((Input.GetKeyDown(KeyCode.Space) || !BlinkDetector.blinked) && !blinkeye  && !start && canStart)
+        //if ((Input.GetKeyDown(KeyCode.Space) || !BlinkDetector.blinked) && !blinkeye  && !start && canStart)
+        if (Input.GetKeyDown(KeyCode.Space) && !start && canStart)
         {
             StartCoroutine(blinkdelay());
-            zone = "ground";
-            start = true;
 
+            gm.RunGame();
+
+            zone = "ground";
+
+            start = true;
             exclamation.enabled = false;
 
             Show(babies, false, false);
 
             anim.Play("kiwiRun");
-            signal.enabled = false;
             music.Play();
+
+            //signal.enabled = false;
+
             canStart = false;
         }
 
-        if (inTask == false && start && !blinkeye && !canStart && (!BlinkDetector.blinked || Input.GetKeyDown(KeyCode.UpArrow)))
-        {
-            StartCoroutine(blinkdelay());
-            Debug.Log("invalid");
-            Dictionary<string, List<string>> badblinkCollection = new Dictionary<string, List<string>>();
-            badblinkCollection.Add("Event", new List<string>());
-            badblinkCollection["Event"].Add("InvalidBlink");
-            notify(badblinkCollection);
-        }
-
-        if (inTask && !blinkeye && (!BlinkDetector.blinked || Input.GetKeyDown(KeyCode.UpArrow)))
-        {
-            StartCoroutine(blinkdelay());
-            doneDidDoIt = true;
-            Invoke("StopDoinIt", 0.1f);
-            Task(input[i]);
-            inTask = false;
-        }
+        if (timing)
+            timer += Time.deltaTime;
 
         if (!end && endgame)
         {
@@ -132,8 +115,34 @@ public class Avatar : Lognotifier
                 kiwiSquawk.Play();
                 playSquawk = false;
             }
+            gm.EndGame();
             exclamation.enabled = true;
-            rb.transform.Translate((-speed / 1.5f) * GameObject.Find("Ground Quad").GetComponent<Transform>().localScale.x, 0, 0);
+            StartCoroutine(GameEnd());
+            //rb.transform.Translate((-speed / 1.5f) * GameObject.Find("Ground Quad").GetComponent<Transform>().localScale.x, 0, 0);
+        }
+    }
+
+    IEnumerator GameEnd()
+    {
+        float t = 0;
+        float startPos = transform.position.x;
+
+        while (t < 1)
+        {
+            if (!start)
+            {
+                speed = baseSpeed / 4;
+            }
+
+            t += Time.deltaTime / speed;
+
+            if (!end)
+            {
+                transform.position = Vector3.Lerp(new Vector3(startPos, transform.position.y, transform.position.z),
+                    new Vector3(0, transform.position.y, transform.position.z), t);
+            }
+
+            yield return null;
         }
     }
 
@@ -144,14 +153,9 @@ public class Avatar : Lognotifier
         blinkeye = false;
     }
 
-    void StopDoinIt()
-    {
-        doneDidDoIt = false;
-    }
-
     void StartGame()
     {
-        signal.enabled = true;
+        //signal.enabled = true;
         canStart = true;
     }
 
@@ -167,7 +171,7 @@ public class Avatar : Lognotifier
     {
         dico.Add("KiwiTrampolineOffset", new List<string>());
         dico.Add("Current Trial", new List<string>());
-        GameObject temp = GameObject.Find("TriggerZone");
+        GameObject temp = GameObject.Find("_TriggerZone");
         
         if (temp)
         {
@@ -180,46 +184,22 @@ public class Avatar : Lognotifier
         }
     }
 
-    public void Task(int input)
+    public void onGameDecision(GameDecisionData decisionData)
     {
-        Dictionary<string, List<string>> blinklogCollection = new Dictionary<string, List<string>>();
-        blinklogCollection.Add("Event", new List<string>());
-        if (input == 1) //if has completed task, jump and reset success
+        if (decisionData.decision == InputTypes.AcceptAllInput)
         {
-
             Jump();
-            List<string> row = new List<string>();
-            blinklogCollection["Event"].Add("BlinkAccepted");
-            Debug.Log("input = 1");
-            notify(blinklogCollection);
-            i++;
-            
-
-
+            Debug.Log("Showing Feedback from Real Input.");
         }
-        else if (input == 2)
+        else if (decisionData.decision == InputTypes.FabInput)
         {
-            blinklogCollection["Event"].Add("ShamFeedback");
-            Debug.Log("input = 2");
-            notify(blinklogCollection);
-            i++;
-            sham = true;
-            float r = UnityEngine.Random.Range(0.5f, 4.0f);
-            Invoke("Jump", r);
-
-
+            Jump();
+            Debug.Log("Showing Feedback from Fabricated Input.");
         }
-
-        else if (input == 0)
+        else
         {
-            blinklogCollection["Event"].Add("BlinkDiscarded");
-            Debug.Log("input = 0");
-            notify(blinklogCollection);
-            i++;
-
-            //Debug.Log(input);
+            Debug.Log("No Feedback.");
         }
-
     }
 
     private int[] Shuffle(int[] myArray)
@@ -230,8 +210,7 @@ public class Avatar : Lognotifier
         string arr = "";
         foreach (int i in myArray)
             arr += i;
-
-        //Debug.Log(arr);
+        
         return myArray;
     }
 
@@ -239,14 +218,15 @@ public class Avatar : Lognotifier
     {
         Dictionary<string, List<string>> jumplogCollection = new Dictionary<string, List<string>>();
         jumplogCollection.Add("Event", new List<string>());
+        jumplogCollection["Event"].Add("KiwiJumped");
+        notify(jumplogCollection);
 
-        jumping = true;
+        //jumping = true;
 
         rb.AddForce(Vector2.up * jumpForce);
         feedback.Play();
         anim.Play("kiwiJump");
-        jumplogCollection["Event"].Add("KiwiJumped");
-        notify(jumplogCollection);
+
         sham = false;
     }
 
@@ -263,7 +243,7 @@ public class Avatar : Lognotifier
         switch (other.tag)
         {
             case "Cue":
-                prep.enabled = true;
+                //prep.enabled = true;
                 zone = "cue";
                 notify(new Dictionary<string, List<string>>() { { "Event", new List<string> { "TrialStart" } } });
                 signallogCollection["Event"].Add("DontBlinkSignal");
@@ -271,23 +251,27 @@ public class Avatar : Lognotifier
                 break;
 
             case "TriggerZone":
-                prep.enabled = false;
-                signal.enabled = true;
+                timer = 0;
+                timing = true;
+                //prep.enabled = false;
+                //signal.enabled = true;
                 signallogCollection["Event"].Add("BlinkSignal");
                 notify(signallogCollection);
                 zone = "task";
 
+                gm.OpenInputWindow();
+                Debug.Log("hello");
+
                 inTask = true;
                 if (SpawnObstacles.trials % 5 != 0)
                 {
-                    //SpawnObstacles.spawnTime = 1f;
                     SpawnObstacles.timeToSpawn = true;
                 }
 
                 break;
 
             case "Slow":
-                speed *= 0.5f;
+                speed *= 2f;
                 anim.speed *= 0.5f;
                 Show(babies, true, true);
                 zone = "slow";
@@ -309,12 +293,10 @@ public class Avatar : Lognotifier
             case "Flying":
                 zone = "flying";
 
-                jumping = false;
-
                 rb.velocity = Vector2.zero;
                 rb.gravityScale = 0;
 
-                speed *= 2;
+                speed *= 0.5f;
 
                 anim.Play("kiwiFall");
                 windSound.Play();
@@ -342,26 +324,27 @@ public class Avatar : Lognotifier
     {
         Dictionary<string, List<string>> vareventlogCollection = new Dictionary<string, List<string>>();
         vareventlogCollection.Add("Event", new List<string>());
+
         switch (other.tag)
         {
             case "TriggerZone":
+                timing = false;
+                Debug.Log("Input window: " + timer + "sec");
                 inTask = false;
-                signal.enabled = false;
+                //signal.enabled = false;
                 break;
 
             case "Slow":
                 speed = baseSpeed;
                 if (SpawnObstacles.trials % 5 == 0)
                 {
-                    //SpawnObstacles.spawnTime = 1f;
                     SpawnObstacles.timeToSpawn = true;
                     notify(new Dictionary<string, List<string>>() { { "Event", new List<string> { "KiwiObstacle" } } });
                 }
 
                 Show(babies, false, false);
                 zone = "ground";
-                anim.speed *= 2;
-                canDestroy = true;
+                anim.speed *= 2f;
                 vareventlogCollection["Event"].Add("TrialEnd");
                 notify(vareventlogCollection);
                 SpawnObstacles.trials++;
@@ -371,7 +354,6 @@ public class Avatar : Lognotifier
                 speed = baseSpeed;
                 if (SpawnObstacles.trials % 5 == 0)
                 {
-                    //SpawnObstacles.spawnTime = 1f;
                     SpawnObstacles.timeToSpawn = true;
                 }
 
@@ -380,7 +362,6 @@ public class Avatar : Lognotifier
                 vareventlogCollection["Event"].Add("TrialEnd");
                 notify(vareventlogCollection);
                 SpawnObstacles.trials++;
-                canDestroy = true;
                 zone = "ground";
                 windSound.Stop();
                 break;
@@ -398,47 +379,69 @@ public class Avatar : Lognotifier
                 anim.Play("kiwiRun");
         }
     }
+
+
+
+    //public void Task(int input)
+    //{
+    //    Dictionary<string, List<string>> blinklogCollection = new Dictionary<string, List<string>>();
+    //    blinklogCollection.Add("Event", new List<string>());
+    //    if (input == 1) //if has completed task, jump and reset success
+    //    {
+
+    //        Jump();
+    //        List<string> row = new List<string>();
+    //        blinklogCollection["Event"].Add("BlinkAccepted");
+    //        Debug.Log("input = 1");
+    //        notify(blinklogCollection);
+    //        i++;
+
+
+
+    //    }
+    //    else if (input == 2)
+    //    {
+    //        blinklogCollection["Event"].Add("ShamFeedback");
+    //        Debug.Log("input = 2");
+    //        notify(blinklogCollection);
+    //        i++;
+    //        sham = true;
+    //        float r = UnityEngine.Random.Range(0.5f, 4.0f);
+    //        Invoke("Jump", r);
+
+
+    //    }
+
+    //    else if (input == 0)
+    //    {
+    //        blinklogCollection["Event"].Add("BlinkDiscarded");
+    //        Debug.Log("input = 0");
+    //        notify(blinklogCollection);
+    //        i++;
+
+    //        //Debug.Log(input);
+    //    }
+
+    //}
+
+
+    // from Update()
+    //if (inTask == false && start && !blinkeye && !canStart && (!BlinkDetector.blinked || Input.GetKeyDown(KeyCode.UpArrow)))
+    //{
+    //    StartCoroutine(blinkdelay());
+    //    Debug.Log("invalid");
+    //    Dictionary<string, List<string>> badblinkCollection = new Dictionary<string, List<string>>();
+    //    badblinkCollection.Add("Event", new List<string>());
+    //    badblinkCollection["Event"].Add("InvalidBlink");
+    //    notify(badblinkCollection);
+    //}
+
+    //if (inTask && !blinkeye && (!BlinkDetector.blinked || Input.GetKeyDown(KeyCode.UpArrow)))
+    //{
+    //    StartCoroutine(blinkdelay());
+    //    doneDidDoIt = true;
+    //    Invoke("StopDoinIt", 0.1f);
+    //    Task(input[i]);
+    //    inTask = false;
+    //}
 }
-
-
-
-
-
-
-//Debug.Log("a: " + rnd);
-/*if (rnd < accuracy && !success)
-    success = true;
-else
-    shamTime = true;*/
-
-/*if (condition == 0) {
-    Task(cond0[i], false);
-}
-else if (condition == 1)
-{
-    if (cond0[i] == true)
-        Task(cond0[i], false);
-    else
-        Task(cond0[i], cond1[j]);
-}
-else if (condition == 2)
-{
-    if (cond0[i] == true)
-        Task(cond0[i], false);
-    else
-        Task(cond0[i], cond2[j]);
-}*/
-
-
-
-/*else if (shamTime) //if player reached shamzone (i.e. didn't succeed), initiate sham function and jump if true
-{
-    fb.Sham();
-    shamTime = false;
-
-    if (fb.sham == true)
-    {
-        float rnd = Random.Range(0.5f, 4.0f);
-        Invoke("Jump", rnd);
-    }
-}*/

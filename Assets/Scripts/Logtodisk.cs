@@ -10,8 +10,8 @@ using UnityEngine.Events;
 
 public class Logtodisk : MonoBehaviour
 {
-    [SerializeField]
-    private string filepath = @"C:\Users\maxime\Desktop\tuto unity\kiwilog.csv";
+    //[SerializeField]
+    private string filepath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\kiwilog.csv";
 
     public StreamWriter writer;
 

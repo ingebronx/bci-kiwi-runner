@@ -12,8 +12,7 @@ public class SpawnObstacles : MonoBehaviour
     private float spawnPosY;
     private Vector3 spawnPoint; //obstacle spawnpoint
 
-
-    public static float spawnTime; //the time between spawns
+    
     public static bool timeToSpawn; //checks if it is time to spawn
 
     public static int trials = 1;
@@ -21,12 +20,12 @@ public class SpawnObstacles : MonoBehaviour
     
     void Start() //set spawntime at beginning
     {
-        spawnTime = 0;
+        //spawnTime = 0;
 
         Transform ground = gameObject.transform;
         spawnPosY = ground.position.y + ground.localScale.y / 2;
-        spawnPosX = ground.position.x + ground.localScale.x / 1.9f;
-        spawnPoint = new Vector3(spawnPosX, spawnPosY, 0);
+        spawnPosX = 25;
+        spawnPoint = new Vector3(spawnPosX, spawnPosY);
 
         timeToSpawn = true;
     }
@@ -37,15 +36,14 @@ public class SpawnObstacles : MonoBehaviour
         {
             if (timeToSpawn) //when spawntime hits 0, and we're in the ITT, spawn obstacle
             {
-                int rnd = Random.Range(0, obstacles.Length-1);
+                int rnd = Random.Range(0, obstacles.Length);
                 Spawn(obstacles[rnd], spawnPoint);
             }
-            /*else if (spawnTime > 0) //otherwise, countdown to spawntime
-                spawnTime -= Time.deltaTime;*/
         }
         else if(trials > maxTrials && timeToSpawn)
         {
-            Vector3 spawnPoint2 = new Vector3(spawnPosX / 2, spawnPosY, 0);
+            Vector3 spawnPoint2 = new Vector3(spawnPosX, spawnPosY, 0);
+            Debug.Log("babies spawn at: " + spawnPoint2);
             Spawn(babies, spawnPoint2);
         }
     }
